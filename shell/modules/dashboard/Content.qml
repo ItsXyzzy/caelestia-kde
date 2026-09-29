@@ -44,6 +44,12 @@ Item {
                 enabled: Config.dashboard.showWeather
             },
             {
+                component: notesComponent,
+                iconName: "sticky_note_2",
+                text: Tr.tr("Notes"),
+                enabled: true
+            },
+            {
                 component: terminalComponent,
                 iconName: "terminal",
                 text: qsTr("Terminal"),
@@ -198,6 +204,12 @@ Item {
                 WeatherTab {}
             }
 
+            Component {
+                id: notesComponent
+
+                NotesTab {}
+            }
+            
             Component {
                 id: terminalComponent
 
