@@ -12,34 +12,25 @@ Item {
 
     readonly property var today: Weather.forecast && Weather.forecast.length > 0 ? Weather.forecast[0] : null
 
-    // The card shows a window onto Weather.hourlyForecast. hourOffset is the target page,
-    // shownOffset is what's on screen mid-slide.
+    // The card shows a window onto Weather.hourlyForecast. The arrows move hourOffset
+    // and scrollPos glides after it, so the whole strip scrolls as one piece.
     readonly property var allHourly: Weather.hourlyForecast ?? []
     readonly property int windowSize: 12
     readonly property int step: 6
     readonly property int maxOffset: Math.max(0, allHourly.length - windowSize)
 
     property int hourOffset: 0
-    property int shownOffset: 0
-    property int slideDir: 1
-    property bool sliding: false
-
-    function pageEntries(offset: int): var {
-        return allHourly.slice(offset, offset + windowSize);
-    }
+    property real scrollPos: hourOffset
 
     onMaxOffsetChanged: {
-        // Reloads drop past hours, so keep the target in range.
         if (hourOffset > maxOffset)
             hourOffset = maxOffset;
     }
 
-    onHourOffsetChanged: {
-        if (hourOffset === shownOffset)
-            return;
-        slideDir = hourOffset > shownOffset ? 1 : -1;
-        sliding = true;
-        slideAnim.restart();
+    Behavior on scrollPos {
+        Anim {
+            type: Anim.EmphasizedLarge
+        }
     }
 
     implicitWidth: layout.implicitWidth > 800 ? layout.implicitWidth : 840
@@ -179,19 +170,13 @@ Item {
             ArrowButton {
                 icon: "chevron_left"
                 active: root.hourOffset > 0
-                onClicked: {
-                    if (!root.sliding)
-                        root.hourOffset = Math.max(0, root.hourOffset - root.step);
-                }
+                onClicked: root.hourOffset = Math.max(0, root.hourOffset - root.step)
             }
 
             ArrowButton {
                 icon: "chevron_right"
                 active: root.hourOffset < root.maxOffset
-                onClicked: {
-                    if (!root.sliding)
-                        root.hourOffset = Math.min(root.maxOffset, root.hourOffset + root.step);
-                }
+                onClicked: root.hourOffset = Math.min(root.maxOffset, root.hourOffset + root.step)
             }
         }
 
@@ -200,55 +185,19 @@ Item {
 
             Layout.fillWidth: true
             visible: root.allHourly.length > 0
-            implicitHeight: pageCur.implicitHeight
+            implicitHeight: hourStrip.implicitHeight + Tokens.padding.medium * 2
 
             radius: Tokens.rounding.large
             color: Colours.tPalette.m3surfaceContainer
 
-            // Two pages side by side. The strip slides, the card stays put.
-            Item {
-                id: strip
+            HourStrip {
+                id: hourStrip
 
-                width: hourlyCard.width
-                height: hourlyCard.height
-
-                HourPage {
-                    id: pageCur
-
-                    width: strip.width
-                    entries: root.pageEntries(root.shownOffset)
-                    showNow: root.shownOffset === 0
-                }
-
-                HourPage {
-                    id: pageNext
-
-                    x: root.slideDir * strip.width
-                    width: strip.width
-                    visible: root.sliding
-                    entries: root.pageEntries(root.hourOffset)
-                    showNow: root.hourOffset === 0
-                }
-            }
-
-            SequentialAnimation {
-                id: slideAnim
-
-                Anim {
-                    target: strip
-                    property: "x"
-                    to: -root.slideDir * strip.width
-                    type: Anim.DefaultSpatial
-                }
-
-                // The incoming page becomes the shown one. They render identically, so it's seamless.
-                ScriptAction {
-                    script: {
-                        root.shownOffset = root.hourOffset;
-                        strip.x = 0;
-                        root.sliding = false;
-                    }
-                }
+                anchors.fill: parent
+                anchors.margins: Tokens.padding.medium
+                entries: root.allHourly
+                scrollPos: root.scrollPos
+                windowSize: root.windowSize
             }
         }
 
@@ -327,15 +276,56 @@ Item {
         }
     }
 
-    // One page of hours: the temperature curve and the hour columns.
-    component HourPage: Item {
-        id: page
+    // Every hour as one continuous strip. Only columns near the viewport are built.
+    component HourStrip: ColumnLayout {
+        id: strip
 
         required property var entries
-        required property bool showNow
+        required property real scrollPos
+        required property int windowSize
 
-        readonly property real minT: entries.length > 0 ? Math.min(...entries.map(h => h.tempC)) : 0
-        readonly property real maxT: entries.length > 0 ? Math.max(...entries.map(h => h.tempC)) : 0
+        readonly property real colW: chart.width / windowSize
+        readonly property int firstIdx: Math.max(0, Math.floor(scrollPos) - 1)
+        readonly property int slotCount: Math.max(0, Math.min(windowSize + 3, entries.length - firstIdx))
+
+        // Temperature range of the dots currently in view.
+        readonly property var visibleRange: {
+            const n = entries.length;
+            if (n === 0)
+                return {
+                    lo: 0,
+                    hi: 0
+                };
+            const a = Math.max(0, Math.min(n - 1, Math.ceil(scrollPos - 0.5)));
+            const b = Math.max(0, Math.min(n - 1, Math.floor(scrollPos + windowSize - 0.5)));
+            let lo = Infinity;
+            let hi = -Infinity;
+            for (let i = a; i <= b; i++) {
+                lo = Math.min(lo, entries[i].tempC);
+                hi = Math.max(hi, entries[i].tempC);
+            }
+            return lo <= hi ? {
+                lo: lo,
+                hi: hi
+            } : {
+                lo: 0,
+                hi: 0
+            };
+        }
+
+        // The chart eases toward the visible range so the scale glides instead of jumping.
+        property real viewMin: visibleRange.lo
+        property real viewMax: visibleRange.hi
+
+        function xAt(i: int): real {
+            return colW * (i + 0.5);
+        }
+
+        function yAt(temp: real): real {
+            const range = viewMax - viewMin;
+            const t = range > 0 ? (temp - viewMin) / range : 0.5;
+            return chart.padTop + chart.plotH * (1 - t);
+        }
 
         function formatHour(h: int): string {
             if (Units.twelveHourClock) {
@@ -355,53 +345,56 @@ Item {
             return formatHour(entry.hour);
         }
 
-        implicitHeight: pageCol.implicitHeight + Tokens.padding.medium * 2
-        height: implicitHeight
+        spacing: 0
 
-        ColumnLayout {
-            id: pageCol
+        Behavior on viewMin {
+            Anim {
+                type: Anim.FastEffects
+            }
+        }
 
-            anchors.fill: parent
-            anchors.margins: Tokens.padding.medium
-            spacing: 0
+        Behavior on viewMax {
+            Anim {
+                type: Anim.FastEffects
+            }
+        }
+
+        Item {
+            id: chart
+
+            readonly property real padTop: 26
+            readonly property real padBottom: 12
+            readonly property real plotH: height - padTop - padBottom
+
+            // Smooth curve: cubic segments with horizontal handles.
+            readonly property string curvePath: {
+                const n = strip.slotCount;
+                if (n < 2)
+                    return "";
+                const first = strip.firstIdx;
+                let d = `M ${strip.xAt(first)} ${strip.yAt(strip.entries[first].tempC)}`;
+                for (let i = first + 1; i < first + n; i++) {
+                    const x0 = strip.xAt(i - 1);
+                    const y0 = strip.yAt(strip.entries[i - 1].tempC);
+                    const x1 = strip.xAt(i);
+                    const y1 = strip.yAt(strip.entries[i].tempC);
+                    const cx = (x0 + x1) / 2;
+                    d += ` C ${cx} ${y0}, ${cx} ${y1}, ${x1} ${y1}`;
+                }
+                return d;
+            }
+            readonly property real firstX: strip.xAt(strip.firstIdx)
+            readonly property real lastX: strip.xAt(strip.firstIdx + strip.slotCount - 1)
+
+            Layout.fillWidth: true
+            Layout.preferredHeight: 120
 
             Item {
-                id: chart
+                id: chartContent
 
-                readonly property real padTop: 26
-                readonly property real padBottom: 12
-                readonly property real colW: width / Math.max(1, page.entries.length)
-                readonly property real plotH: height - padTop - padBottom
-
-                function xAt(i: int): real {
-                    return colW * (i + 0.5);
-                }
-
-                function yAt(temp: real): real {
-                    const range = page.maxT - page.minT;
-                    const t = range > 0 ? (temp - page.minT) / range : 0.5;
-                    return padTop + plotH * (1 - t);
-                }
-
-                // Smooth curve: cubic segments with horizontal handles.
-                readonly property string curvePath: {
-                    const n = page.entries.length;
-                    if (n < 2)
-                        return "";
-                    let d = `M ${xAt(0)} ${yAt(page.entries[0].tempC)}`;
-                    for (let i = 1; i < n; i++) {
-                        const x0 = xAt(i - 1);
-                        const y0 = yAt(page.entries[i - 1].tempC);
-                        const x1 = xAt(i);
-                        const y1 = yAt(page.entries[i].tempC);
-                        const cx = (x0 + x1) / 2;
-                        d += ` C ${cx} ${y0}, ${cx} ${y1}, ${x1} ${y1}`;
-                    }
-                    return d;
-                }
-
-                Layout.fillWidth: true
-                Layout.preferredHeight: 120
+                x: -strip.scrollPos * strip.colW
+                width: strip.entries.length * strip.colW
+                height: chart.height
 
                 Shape {
                     anchors.fill: parent
@@ -426,7 +419,7 @@ Item {
                         }
 
                         PathSvg {
-                            path: chart.curvePath ? `${chart.curvePath} L ${chart.xAt(page.entries.length - 1)} ${chart.height} L ${chart.xAt(0)} ${chart.height} Z` : ""
+                            path: chart.curvePath ? `${chart.curvePath} L ${chart.lastX} ${chart.height} L ${chart.firstX} ${chart.height} Z` : ""
                         }
                     }
                 }
@@ -449,19 +442,21 @@ Item {
                 }
 
                 Repeater {
-                    model: page.entries
+                    model: strip.slotCount
 
                     Item {
                         id: dot
 
                         required property int index
-                        required property var modelData
 
-                        readonly property bool isNow: page.showNow && index === 0
-                        readonly property bool isExtreme: modelData.tempC === page.maxT || modelData.tempC === page.minT
+                        readonly property int dataIndex: strip.firstIdx + index
+                        readonly property var entry: strip.entries[dataIndex]
+                        readonly property bool isNow: dataIndex === 0
+                        readonly property bool isExtreme: (entry?.tempC ?? 0) === strip.visibleRange.hi || (entry?.tempC ?? 0) === strip.visibleRange.lo
 
-                        x: chart.xAt(index)
-                        y: chart.yAt(modelData.tempC)
+                        visible: entry !== undefined
+                        x: strip.xAt(dataIndex)
+                        y: strip.yAt(entry?.tempC ?? 0)
 
                         StyledRect {
                             anchors.centerIn: parent
@@ -474,52 +469,57 @@ Item {
                         StyledText {
                             anchors.horizontalCenter: parent.horizontalCenter
                             y: -height - 8
-                            text: Weather.formatTemp(dot.modelData.tempC, true)
+                            text: Weather.formatTemp(dot.entry?.tempC, true)
                             font: Tokens.font.body.builders.small.weight(Font.DemiBold).build()
                             color: dot.isNow ? Colours.palette.m3tertiary : Colours.palette.m3onSurface
                         }
                     }
                 }
             }
+        }
 
-            // Columns use chart.xAt so they line up with the dots.
+        // Columns use strip.xAt so they line up with the dots.
+        Item {
+            id: hourRow
+
+            Layout.fillWidth: true
+            Layout.topMargin: Tokens.spacing.small
+            implicitHeight: sizer.implicitHeight
+
+            // Never shown. Gives the row the height of a real cell.
+            HourCell {
+                id: sizer
+
+                opacity: 0
+                enabled: false
+                label: "00:00"
+                icon: "cloud"
+                precip: 100
+            }
+
             Item {
-                id: hourRow
-
-                Layout.fillWidth: true
-                Layout.topMargin: Tokens.spacing.small
-                implicitHeight: sizer.implicitHeight
-
-                // Never shown. Gives the row the height of a real cell.
-                HourCell {
-                    id: sizer
-
-                    opacity: 0
-                    enabled: false
-                    label: "00:00"
-                    icon: "cloud"
-                    precip: 100
-                }
+                x: -strip.scrollPos * strip.colW
 
                 Repeater {
-                    model: page.entries
+                    model: strip.slotCount
 
                     HourCell {
                         id: cell
 
                         required property int index
-                        required property var modelData
 
-                        readonly property bool isNow: page.showNow && index === 0
+                        readonly property int dataIndex: strip.firstIdx + index
+                        readonly property var entry: strip.entries[dataIndex]
+                        readonly property bool isNow: dataIndex === 0
 
-                        x: chart.xAt(index) - width / 2
-                        width: chart.colW
+                        x: strip.xAt(dataIndex) - width / 2
+                        width: strip.colW
 
                         now: isNow
-                        midnight: modelData.hour === 0 && !isNow
-                        label: isNow ? Tr.trCtx("Now", "hourly forecast, current hour") : page.hourLabel(modelData)
-                        icon: modelData.icon
-                        precip: modelData.precipChance
+                        midnight: (entry?.hour ?? -1) === 0 && !isNow
+                        label: isNow ? Tr.trCtx("Now", "hourly forecast, current hour") : (entry ? strip.hourLabel(entry) : "")
+                        icon: entry?.icon ?? ""
+                        precip: entry?.precipChance ?? 0
                     }
                 }
             }
