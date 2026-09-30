@@ -4,363 +4,331 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell.Services.UPower
 import Caelestia.Config
-import Caelestia.I18n
 import qs.components
 import qs.services
-import qs.utils
 
-Item {
+ColumnLayout {
     id: root
 
-    function formatSeconds(s: int): string {
-        const day = Math.floor(s / 86400);
-        const hr = Math.floor(s / 3600) % 24;
-        const min = Math.floor(s / 60) % 60;
+    required property PopoutState popouts
+    property real scaleOffset: 1.0
+    property real fontScale: 1.0
+    property bool _isSidebarOpen: false
 
-        let comps = [];
-        if (day > 0)
-            comps.push(Tr.trN("%n day", "%n days", day));
-        if (hr > 0)
-            comps.push(Tr.trN("%n hour", "%n hours", hr));
-        if (min > 0)
-            comps.push(Tr.trN("%n min", "%n mins", min));
-
-        return comps.join(Tr.trCtx(", ", "duration component separator"));
-    }
-
-    function powerProfileToString(p: int): string {
-        switch (p) {
-        case PowerProfile.Balanced:
-            return Tr.trCtx("Balanced", "power profile");
-        case PowerProfile.Performance:
-            return Tr.trCtx("Performance", "power profile");
-        case PowerProfile.PowerSaver:
-            return Tr.trCtx("Power saver", "power profile");
-        default:
-            return Tr.trCtx("Unknown", "power profile");
-        }
-    }
-
+    // PowerProfiles.degradationReason is an enum; printing it directly showed the
+    // enum member name ("HighTemperature") rather than something a user reads.
     function perfDegradationToString(p: int): string {
         switch (p) {
         case PerformanceDegradationReason.HighTemperature:
-            return Tr.tr("The device is too hot");
+            return qsTr("The device is too hot");
         case PerformanceDegradationReason.LapDetected:
-            return Tr.tr("The device is on a lap");
+            return qsTr("The device is on a lap");
         default:
-            return Tr.tr("Unknown reason");
+            return qsTr("Unknown reason");
         }
     }
 
-    readonly property bool charging: [UPowerDeviceState.Charging, UPowerDeviceState.FullyCharged, UPowerDeviceState.PendingCharge].includes(UPower.displayDevice.state)
-    readonly property color chargeFill: "#2e7d32"
-    readonly property color chargeTrack: "#c8e6c9"
-    readonly property color chargeOnTrack: "#1b5e20"
-    readonly property color chargeOnFill: "#e8f5e9"
-    property real animPerc: UPower.displayDevice.percentage
+    width: Math.max(300 * scaleOffset, _isSidebarOpen ? (Tokens.sizes.sidebar.width * scaleOffset) - Tokens.padding.extraLargeIncreased : 0)
+    spacing: Tokens.spacing.medium * scaleOffset
 
-    implicitWidth: Tokens.sizes.bar.batteryWidth
-    implicitHeight: mainCol.implicitHeight
-
-    Behavior on animPerc {
-        Anim {}
+    StyledText {
+        Layout.topMargin: Tokens.padding.medium * root.scaleOffset
+        Layout.leftMargin: Tokens.padding.small * root.scaleOffset
+        text: qsTr("Battery")
+        font.weight: 500
+        font.pointSize: Tokens.font.body.medium.pointSize * root.fontScale
     }
 
-    ColumnLayout {
-        id: mainCol
+    StyledRect {
+        Layout.fillWidth: true
+        implicitWidth: cardLayout.implicitWidth + Tokens.padding.medium * 2 * root.scaleOffset
+        implicitHeight: cardLayout.implicitHeight + Tokens.padding.medium * 2 * root.scaleOffset
+        radius: Tokens.rounding.medium * root.scaleOffset
+        color: Colours.tPalette.m3surfaceContainer
+        clip: true
 
-        anchors.left: parent.left
-        anchors.right: parent.right
-        spacing: Tokens.spacing.medium
+        ColumnLayout {
+            id: cardLayout
 
-        StyledClippingRect {
-            id: tank
+            width: parent.width - Tokens.padding.medium * 2 * root.scaleOffset
+            x: Tokens.padding.medium * root.scaleOffset
+            y: Tokens.padding.medium * root.scaleOffset
+            spacing: Tokens.spacing.large * root.scaleOffset
 
-            readonly property color baseFillColour: root.charging ? root.chargeFill : Colours.palette.m3secondary
-            readonly property color baseContainerColour: root.charging ? root.chargeTrack : Colours.palette.m3secondaryContainer
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Tokens.spacing.large * root.scaleOffset
 
-            Layout.fillWidth: true
-            Layout.preferredHeight: 120
+                Item {
+                    Layout.preferredWidth: 60 * root.scaleOffset
+                    Layout.preferredHeight: 110 * root.scaleOffset
+                    Layout.alignment: Qt.AlignVCenter
 
-            color: baseContainerColour
-            radius: Tokens.rounding.large
+                    Rectangle {
+                        id: nub
 
-            Behavior on color {
-                CAnim {
-                    duration: Tokens.anim.durations.expressiveDefaultEffects
-                }
-            }
-
-            TankContents {
-                id: tankLayout
-
-                anchors.fill: parent
-                anchors.margins: Tokens.padding.medium
-
-                accentColour: root.charging ? root.chargeOnTrack : Colours.palette.m3primary
-                textColour: Colours.palette.m3onSurface
-
-                Behavior on accentColour {
-                    CAnim {
-                        duration: Tokens.anim.durations.expressiveDefaultEffects
-                    }
-                }
-            }
-
-            StyledRect {
-                id: fillRect
-
-                anchors.left: parent.left
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                implicitWidth: parent.width * root.animPerc
-
-                color: tank.baseFillColour
-                radius: Tokens.rounding.extraSmall
-                clip: true
-
-                Behavior on color {
-                    CAnim {
-                        duration: Tokens.anim.durations.expressiveDefaultEffects
-                    }
-                }
-
-                Rectangle {
-                    id: pulse
-
-                    visible: root.charging
-                    anchors.top: parent.top
-                    anchors.bottom: parent.bottom
-                    width: parent.width * 0.35
-                    x: -width
-
-                    gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop {
-                            position: 0
-                            color: Qt.alpha("#ffffff", 0)
-                        }
-                        GradientStop {
-                            position: 0.5
-                            color: Qt.alpha("#ffffff", 0.22)
-                        }
-                        GradientStop {
-                            position: 1
-                            color: Qt.alpha("#ffffff", 0)
-                        }
-                    }
-
-                    SequentialAnimation {
-                        running: root.charging
-                        loops: Animation.Infinite
-
-                        NumberAnimation {
-                            target: pulse
-                            property: "x"
-                            from: -pulse.width
-                            to: fillRect.width
-                            duration: Tokens.anim.durations.expressiveSlowEffects * 3
-                            easing: Tokens.anim.expressiveSlowEffects
-                        }
-                        PauseAnimation {
-                            duration: Tokens.anim.durations.expressiveSlowEffects
-                        }
-                    }
-                }
-
-                TankContents {
-                    anchors.left: parent.left
-                    anchors.top: parent.top
-                    anchors.bottom: parent.bottom
-                    anchors.margins: tankLayout.anchors.margins
-                    width: tankLayout.width
-
-                    accentColour: root.charging ? root.chargeOnFill : Colours.palette.m3primaryContainer
-                    textColour: root.charging ? root.chargeOnFill : Colours.palette.m3onSecondary
-
-                    Behavior on accentColour {
-                        CAnim {
-                            duration: Tokens.anim.durations.expressiveDefaultEffects
-                        }
-                    }
-
-                    Behavior on textColour {
-                        CAnim {
-                            duration: Tokens.anim.durations.expressiveDefaultEffects
-                        }
-                    }
-                }
-            }
-        }
-
-        StyledText {
-            Layout.fillWidth: true
-            horizontalAlignment: Text.AlignHCenter
-            text: {
-                const dev = UPower.displayDevice;
-                if (!dev.isLaptopBattery)
-                    return Tr.tr("Power profile: %1").arg(root.powerProfileToString(PowerProfiles.profile));
-
-                if (UPower.onBattery) {
-                    const time = root.formatSeconds(dev.timeToEmpty);
-                    if (time)
-                        return Tr.tr("Time remaining: %1").arg(time);
-                    return Tr.tr("Calculating remaining battery life...");
-                }
-
-                if (dev.timeToFull > 0)
-                    return Tr.tr("Time until charged: %1").arg(root.formatSeconds(dev.timeToFull));
-                if (Math.round(dev.percentage * 100) === 100)
-                    return Tr.tr("Fully charged!");
-                return Tr.tr("Calculating time until charged...");
-            }
-            color: Colours.palette.m3onSurfaceVariant
-            font: Tokens.font.body.small
-            wrapMode: Text.WordWrap
-        }
-
-        Loader {
-            Layout.alignment: Qt.AlignHCenter
-            asynchronous: true
-
-            active: PowerProfiles.degradationReason !== PerformanceDegradationReason.None
-
-            sourceComponent: StyledRect {
-                implicitWidth: child.implicitWidth + Tokens.padding.medium * 2
-                implicitHeight: child.implicitHeight + Tokens.padding.large
-
-                color: Colours.palette.m3error
-                radius: Tokens.rounding.large
-
-                Column {
-                    id: child
-
-                    anchors.centerIn: parent
-
-                    Row {
+                        width: 24 * root.scaleOffset
+                        height: 10 * root.scaleOffset
                         anchors.horizontalCenter: parent.horizontalCenter
-                        spacing: Tokens.spacing.small
+                        anchors.top: parent.top
+                        color: Colours.palette.m3primary
+                        radius: Tokens.rounding.small
+
+                        Rectangle {
+                            width: parent.width
+                            height: parent.radius
+                            anchors.bottom: parent.bottom
+                            color: parent.color
+                        }
+                    }
+
+                    Item {
+                        id: batteryBody
+
+                        anchors.top: parent.top
+                        anchors.topMargin: 8 * root.scaleOffset
+                        anchors.bottom: parent.bottom
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+
+                        Item {
+                            id: liquidContainer
+
+                            anchors.bottom: parent.bottom
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+
+                            height: parent.height * (UPower.displayDevice.isLaptopBattery ? UPower.displayDevice.percentage : 0)
+
+                            Behavior on height {
+                                NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
+                            }
+
+                            Rectangle {
+                                anchors.top: parent.top
+                                anchors.topMargin: waveLayer.opacity * Math.min(24, parent.height)
+                                anchors.bottom: parent.bottom
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+
+                                color: Colours.palette.m3primary
+
+                                bottomLeftRadius: Tokens.rounding.medium - 3
+                                bottomRightRadius: Tokens.rounding.medium - 3
+                                topLeftRadius: height >= batteryBody.height - 3 ? Tokens.rounding.medium - 3 : 0
+                                topRightRadius: height >= batteryBody.height - 3 ? Tokens.rounding.medium - 3 : 0
+                            }
+
+                            Item {
+                                id: waveLayer
+
+                                anchors.top: parent.top
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                height: Math.min(25, parent.height)
+                                clip: true
+
+                                opacity: {
+                                    if (UPower.onBattery) return 0;
+                                    if (parent.height <= 30) return 0;
+                                    if (parent.height < 40) return (parent.height - 30) / 10.0;
+                                    return 1.0;
+                                }
+
+                                Behavior on opacity { NumberAnimation { duration: 300 } }
+
+                                Rectangle {
+                                    width: 140 * root.scaleOffset; height: 140 * root.scaleOffset
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    y: 8 * root.scaleOffset
+
+                                    color: Colours.palette.m3primary
+                                    radius: 50 * root.scaleOffset
+
+                                    RotationAnimation on rotation {
+                                        loops: Animation.Infinite
+                                        from: 0; to: 360
+                                        duration: 4000
+                                        running: waveLayer.opacity > 0
+                                    }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            anchors.fill: parent
+                            color: "transparent"
+                            border.color: Colours.palette.m3primary
+                            border.width: 3 * root.scaleOffset
+                            radius: Tokens.rounding.medium * root.scaleOffset
+                        }
 
                         MaterialIcon {
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.verticalCenterOffset: -font.pointSize / 10
-
-                            text: "warning"
-                            color: Colours.palette.m3onError
+                            anchors.centerIn: parent
+                            text: "bolt"
+                            visible: !UPower.onBattery
+                            color: Colours.palette.m3onPrimary
+                            fontStyle.pointSize: Tokens.font.icon.large.pointSize * root.fontScale
+                            z: 1
                         }
+                    }
+                }
 
-                        StyledText {
-                            anchors.verticalCenter: parent.verticalCenter
-                            // TRANSLATORS: charger or thermal warning: the battery cannot draw full power
-                            text: Tr.tr("Performance degraded")
-                            color: Colours.palette.m3onError
-                            font: Tokens.font.title.small
-                        }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignVCenter
+                    spacing: Tokens.spacing.small * root.scaleOffset
 
-                        MaterialIcon {
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.verticalCenterOffset: -font.pointSize / 10
-
-                            text: "warning"
-                            color: Colours.palette.m3onError
-                        }
+                    StyledText {
+                        text: UPower.displayDevice.isLaptopBattery ? qsTr("%1%").arg(Math.round(UPower.displayDevice.percentage * 100)) : qsTr("N/A")
+                        font.pointSize: 28 * root.fontScale
+                        font.weight: 600
                     }
 
                     StyledText {
-                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: {
+                            if (!UPower.displayDevice.isLaptopBattery)
+                                return qsTr("No battery detected");
 
-                        text: root.perfDegradationToString(PowerProfiles.degradationReason)
-                        color: Colours.palette.m3onError
+                            if (UPower.onBattery)
+                                return qsTr("~ %1").arg(Units.formatDurationShort(UPower.displayDevice.timeToEmpty, "Calculating..."));
+
+                            if (UPower.displayDevice.state === UPowerDeviceState.FullyCharged || UPower.displayDevice.percentage >= 1.0)
+                                return qsTr("Fully charged!");
+
+                            return qsTr("~ %1").arg(Units.formatDurationShort(UPower.displayDevice.timeToFull, "Calculating..."));
+                        }
+                        color: Colours.palette.m3onSurfaceVariant
+                        font.pointSize: Tokens.font.body.medium.pointSize * root.fontScale
                     }
                 }
             }
-        }
 
-        StyledRect {
-            id: profiles
+            Loader {
+                asynchronous: true
+                Layout.fillWidth: true
 
-            property string current: {
-                const p = PowerProfiles.profile;
-                if (p === PowerProfile.PowerSaver)
-                    return saver.icon;
-                if (p === PowerProfile.Performance)
-                    return perf.icon;
-                return balance.icon;
+                active: PowerProfiles.degradationReason !== PerformanceDegradationReason.None
+
+                sourceComponent: StyledRect {
+                    implicitWidth: child.implicitWidth + Tokens.padding.medium * 2 * root.scaleOffset
+                    implicitHeight: child.implicitHeight + Tokens.padding.small * 2 * root.scaleOffset
+
+                    color: Colours.palette.m3error
+                    radius: Tokens.rounding.large * root.scaleOffset
+
+                    Column {
+                        id: child
+
+                        anchors.centerIn: parent
+
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: Tokens.spacing.small * root.scaleOffset
+
+                            MaterialIcon {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "warning"
+                                color: Colours.palette.m3onError
+                            }
+
+                            StyledText {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: qsTr("Performance degraded: %1").arg(root.perfDegradationToString(PowerProfiles.degradationReason))
+                                color: Colours.palette.m3onError
+                                font.pointSize: Tokens.font.mono.medium.pointSize * root.fontScale
+                            }
+                        }
+                    }
+                }
             }
-
-            Layout.alignment: Qt.AlignHCenter
-
-            implicitWidth: saver.implicitHeight + balance.implicitHeight + perf.implicitHeight + Tokens.padding.medium * 2 + Tokens.spacing.largeIncreased * 2
-            implicitHeight: Math.max(saver.implicitHeight, balance.implicitHeight, perf.implicitHeight) + Tokens.padding.small
-
-            color: Colours.tPalette.m3surfaceContainer
-            radius: Tokens.rounding.full
 
             StyledRect {
-                id: indicator
+                id: profiles
 
-                color: Colours.palette.m3primary
-                radius: Tokens.rounding.full
-                state: profiles.current
+                Layout.alignment: Qt.AlignHCenter
+                Layout.fillWidth: true
 
-                states: [
-                    State {
-                        name: saver.icon
-
-                        Fill {
-                            item: saver
-                        }
-                    },
-                    State {
-                        name: balance.icon
-
-                        Fill {
-                            item: balance
-                        }
-                    },
-                    State {
-                        name: perf.icon
-
-                        Fill {
-                            item: perf
-                        }
-                    }
-                ]
-
-                transitions: Transition {
-                    AnchorAnim {}
+                property string current: {
+                    const p = PowerProfiles.profile;
+                    if (p === PowerProfile.PowerSaver)
+                        return saver.icon;
+                    if (p === PowerProfile.Performance)
+                        return perf.icon;
+                    return balance.icon;
                 }
-            }
 
-            Profile {
-                id: saver
+                implicitHeight: Math.max(saver.implicitHeight, balance.implicitHeight, perf.implicitHeight) + Tokens.padding.small * root.scaleOffset
 
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.left: parent.left
-                anchors.leftMargin: Tokens.padding.extraSmall
+                color: Colours.tPalette.m3surfaceContainer
+                radius: Tokens.rounding.full * root.scaleOffset
 
-                profile: PowerProfile.PowerSaver
-                icon: "energy_savings_leaf"
-            }
+                StyledRect {
+                    id: indicator
 
-            Profile {
-                id: balance
+                    color: Colours.palette.m3primary
+                    radius: Tokens.rounding.full * root.scaleOffset
+                    state: profiles.current
 
-                anchors.centerIn: parent
+                    states: [
+                        State {
+                            name: saver.icon
 
-                profile: PowerProfile.Balanced
-                icon: "balance"
-            }
+                            Fill {
+                                item: saver
+                            }
+                        },
+                        State {
+                            name: balance.icon
 
-            Profile {
-                id: perf
+                            Fill {
+                                item: balance
+                            }
+                        },
+                        State {
+                            name: perf.icon
 
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.right: parent.right
-                anchors.rightMargin: Tokens.padding.extraSmall
+                            Fill {
+                                item: perf
+                            }
+                        }
+                    ]
 
-                profile: PowerProfile.Performance
-                icon: "rocket_launch"
+                    transitions: Transition {
+                        AnchorAnim {}
+                    }
+                }
+
+                Profile {
+                    id: saver
+
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.left: parent.left
+                    anchors.leftMargin: Tokens.padding.extraSmall * root.scaleOffset
+
+                    profile: PowerProfile.PowerSaver
+                    icon: "energy_savings_leaf"
+                }
+
+                Profile {
+                    id: balance
+
+                    anchors.centerIn: parent
+
+                    profile: PowerProfile.Balanced
+                    icon: "balance"
+                }
+
+                Profile {
+                    id: perf
+
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.right: parent.right
+                    anchors.rightMargin: Tokens.padding.extraSmall * root.scaleOffset
+
+                    profile: PowerProfile.Performance
+                    icon: "rocket_launch"
+                }
             }
         }
     }
@@ -379,11 +347,11 @@ Item {
         required property string icon
         required property int profile
 
-        implicitWidth: icon.implicitHeight + Tokens.padding.small
-        implicitHeight: icon.implicitHeight + Tokens.padding.small
+        implicitWidth: icon.implicitHeight + Tokens.padding.small * root.scaleOffset
+        implicitHeight: icon.implicitHeight + Tokens.padding.small * root.scaleOffset
 
         StateLayer {
-            radius: Tokens.rounding.full
+            radius: Tokens.rounding.full * root.scaleOffset
             color: profiles.current === parent.icon ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
             onClicked: PowerProfiles.profile = parent.profile
         }
@@ -394,7 +362,7 @@ Item {
             anchors.centerIn: parent
 
             text: parent.icon
-            fontStyle: Tokens.font.icon.large
+            fontStyle.pointSize: Tokens.font.icon.large.pointSize * root.fontScale
             color: profiles.current === text ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
             fill: profiles.current === text ? 1 : 0
 
@@ -402,67 +370,6 @@ Item {
                 Anim {
                     type: Anim.DefaultEffects
                 }
-            }
-        }
-    }
-
-    component TankContents: ColumnLayout {
-        id: contents
-
-        required property color accentColour
-        required property color textColour
-
-        spacing: 0
-
-        MaterialIcon {
-            Layout.leftMargin: -Tokens.padding.extraSmall
-            text: UPower.displayDevice.isLaptopBattery ? "battery_full" : "bolt"
-            color: contents.accentColour
-            fontStyle: Tokens.font.icon.large
-        }
-
-        StyledText {
-            Layout.fillWidth: true
-            text: UPower.displayDevice.isLaptopBattery ? Tr.tr("Battery") : Tr.tr("Power")
-            color: contents.textColour
-            font: Tokens.font.body.medium
-        }
-
-        Item {
-            Layout.fillHeight: true
-        }
-
-        RowLayout {
-            Layout.alignment: Qt.AlignRight
-            spacing: Tokens.spacing.extraSmall
-
-            MaterialIcon {
-                text: "bolt"
-                color: contents.accentColour
-                fontStyle: Tokens.font.icon.large
-                fill: 1
-
-                scale: root.charging ? 1 : 0
-                opacity: root.charging ? 1 : 0
-
-                Behavior on scale {
-                    Anim {
-                        type: Anim.FastSpatial
-                    }
-                }
-
-                Behavior on opacity {
-                    Anim {
-                        type: Anim.FastEffects
-                    }
-                }
-            }
-
-            StyledText {
-                visible: UPower.displayDevice.isLaptopBattery
-                text: Strings.percentOne(UPower.displayDevice.percentage)
-                color: contents.accentColour
-                font: Tokens.font.headline.medium
             }
         }
     }
