@@ -1,8 +1,9 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Shapes
 import Caelestia.Config
-import Caelestia.I18n
 import qs.components
 import qs.services
 import qs.utils
@@ -27,15 +28,15 @@ Item {
             hourOffset = maxOffset;
     }
 
+    implicitWidth: layout.implicitWidth > 800 ? layout.implicitWidth : 840
+    implicitHeight: layout.implicitHeight
+    Component.onCompleted: Weather.reload()
+
     Behavior on scrollPos {
         Anim {
             type: Anim.EmphasizedLarge
         }
     }
-
-    implicitWidth: layout.implicitWidth > 800 ? layout.implicitWidth : 840
-    implicitHeight: layout.implicitHeight
-    Component.onCompleted: Weather.reload()
 
     ColumnLayout {
         id: layout
@@ -52,7 +53,7 @@ Item {
                 spacing: Tokens.spacing.extraSmall
 
                 StyledText {
-                    text: Weather.city || Tr.tr("Loading...")
+                    text: Weather.city || qsTr("Loading...")
                     font: Tokens.font.body.builders.large.size(28).weight(Font.DemiBold).build()
                     color: Colours.palette.m3onSurface
                 }
@@ -73,14 +74,14 @@ Item {
 
                 WeatherStat {
                     icon: "wb_twilight"
-                    label: Tr.tr("Sunrise")
+                    label: qsTr("Sunrise")
                     value: Weather.sunrise
                     colour: Colours.palette.m3tertiary
                 }
 
                 WeatherStat {
                     icon: "bedtime"
-                    label: Tr.tr("Sunset")
+                    label: qsTr("Sunset")
                     value: Weather.sunset
                     colour: Colours.palette.m3tertiary
                 }
@@ -134,20 +135,20 @@ Item {
 
             DetailCard {
                 icon: "water_drop"
-                label: Tr.tr("Humidity")
+                label: qsTr("Humidity")
                 value: Strings.percent(Weather.humidity)
                 colour: Colours.palette.m3secondary
             }
             DetailCard {
                 icon: "thermostat"
-                label: Tr.trCtx("Feels like", "apparent temperature")
+                label: qsTr("Feels like", "apparent temperature")
                 value: Weather.feelsLike
                 colour: Colours.palette.m3primary
             }
             DetailCard {
                 icon: "air"
-                label: Tr.tr("Wind")
-                value: Weather.windSpeed ? Tr.tr("%1 km/h").arg(Weather.windSpeed) : "--"
+                label: qsTr("Wind")
+                value: Weather.windSpeed ? qsTr("%1 km/h").arg(Weather.windSpeed) : "--"
                 colour: Colours.palette.m3tertiary
             }
         }
@@ -162,7 +163,7 @@ Item {
 
             StyledText {
                 Layout.fillWidth: true
-                text: Tr.tr("Hourly forecast")
+                text: qsTr("Hourly forecast")
                 font: Tokens.font.body.builders.medium.weight(Font.DemiBold).build()
                 color: Colours.palette.m3onSurface
             }
@@ -205,7 +206,7 @@ Item {
             Layout.topMargin: Tokens.spacing.medium
             Layout.leftMargin: Tokens.padding.medium
             visible: forecastRepeater.count > 0
-            text: Tr.tr("7-day forecast")
+            text: qsTr("7-day forecast")
             font: Tokens.font.body.builders.medium.weight(Font.DemiBold).build()
             color: Colours.palette.m3onSurface
         }
@@ -239,7 +240,7 @@ Item {
 
                         StyledText {
                             Layout.alignment: Qt.AlignHCenter
-                            text: forecastItem.index === 0 ? Tr.trCtx("Today", "forecast column") : new Date(forecastItem.modelData.date).toLocaleDateString(Qt.locale(), "ddd")
+                            text: forecastItem.index === 0 ? qsTr("Today", "forecast column") : new Date(forecastItem.modelData.date).toLocaleDateString(Qt.locale(), "ddd")
                             font: Tokens.font.body.builders.medium.weight(Font.DemiBold).build()
                             color: Colours.palette.m3primary
                         }
@@ -265,7 +266,7 @@ Item {
                             text: {
                                 const min = Weather.formatTemp(forecastItem.modelData.minTempC, true);
                                 const max = Weather.formatTemp(forecastItem.modelData.maxTempC, true);
-                                return Tr.trCtx("%1 / %2", "min/max temperature").arg(min).arg(max);
+                                return qsTr("%1 / %2", "min/max temperature").arg(min).arg(max);
                             }
                             font: Tokens.font.body.builders.small.weight(Font.DemiBold).build()
                             color: Colours.palette.m3tertiary
@@ -517,7 +518,7 @@ Item {
 
                         now: isNow
                         midnight: (entry?.hour ?? -1) === 0 && !isNow
-                        label: isNow ? Tr.trCtx("Now", "hourly forecast, current hour") : (entry ? strip.hourLabel(entry) : "")
+                        label: isNow ? qsTr("Now", "hourly forecast, current hour") : (entry ? strip.hourLabel(entry) : "")
                         icon: entry?.icon ?? ""
                         precip: entry?.precipChance ?? 0
                     }

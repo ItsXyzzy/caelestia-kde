@@ -1,8 +1,9 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Layouts
 import Quickshell.Io
 import Caelestia.Config
-import Caelestia.I18n
 import qs.components
 import qs.components.controls
 import qs.services
@@ -11,9 +12,6 @@ import qs.utils
 Item {
     id: root
 
-    implicitWidth: 840
-    implicitHeight: 560
-
     property var notes: []
     property int selectedIndex: -1
     readonly property var selectedNote: root.selectedIndex >= 0 && root.selectedIndex < root.notes.length ? root.notes[root.selectedIndex] : null
@@ -21,7 +19,7 @@ Item {
     function newNote(): void {
         const note = {
             id: Date.now(),
-            title: Tr.tr("Untitled"),
+            title: qsTr("Untitled"),
             body: "",
             updated: Date.now()
         };
@@ -52,6 +50,10 @@ Item {
         saveTimer.restart();
     }
 
+    implicitWidth: 840
+    implicitHeight: 560
+    Component.onCompleted: fileView.reload()
+
     FileView {
         id: fileView
 
@@ -74,13 +76,12 @@ Item {
 
     Timer {
         id: saveTimer
+
         interval: 400
         onTriggered: {
             fileView.setText(JSON.stringify(root.notes));
         }
     }
-
-    Component.onCompleted: fileView.reload()
 
     RowLayout {
         id: layout
@@ -104,7 +105,7 @@ Item {
                     Layout.fillWidth: true
 
                     StyledText {
-                        text: Tr.tr("Notes")
+                        text: qsTr("Notes")
                         font: Tokens.font.body.builders.large.size(20).weight(Font.DemiBold).build()
                         color: Colours.palette.m3onSurface
                         Layout.fillWidth: true
@@ -144,6 +145,7 @@ Item {
 
                         CustomMouseArea {
                             id: newNoteArea
+
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
@@ -168,6 +170,7 @@ Item {
 
                     ColumnLayout {
                         id: list
+
                         width: parent.width
                         spacing: Tokens.spacing.extraSmall
 
@@ -207,6 +210,7 @@ Item {
 
                                 ColumnLayout {
                                     id: itemCol
+
                                     anchors.left: parent.left
                                     anchors.right: parent.right
                                     anchors.verticalCenter: parent.verticalCenter
@@ -219,7 +223,7 @@ Item {
                                         StyledText {
                                             Layout.fillWidth: true
                                             elide: Text.ElideRight
-                                            text: noteItem.modelData.title || Tr.tr("Untitled")
+                                            text: noteItem.modelData.title || qsTr("Untitled")
                                             font: Tokens.font.body.builders.medium.weight(Font.DemiBold).build()
                                             color: noteItem.selected ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
                                         }
@@ -251,6 +255,7 @@ Item {
 
                                             CustomMouseArea {
                                                 id: deleteArea
+
                                                 anchors.fill: parent
                                                 anchors.margins: -6
                                                 hoverEnabled: true
@@ -264,7 +269,7 @@ Item {
                                         Layout.fillWidth: true
                                         elide: Text.ElideRight
                                         maximumLineCount: 1
-                                        text: noteItem.modelData.body || Tr.tr("No additional text")
+                                        text: noteItem.modelData.body || qsTr("No additional text")
                                         font: Tokens.font.body.small
                                         opacity: 0.7
                                         color: noteItem.selected ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurfaceVariant
@@ -273,6 +278,7 @@ Item {
 
                                 CustomMouseArea {
                                     id: itemArea
+
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
@@ -300,7 +306,7 @@ Item {
                                 Layout.fillWidth: true
                                 horizontalAlignment: Text.AlignHCenter
                                 wrapMode: Text.WordWrap
-                                text: Tr.tr("No notes yet. Tap + to add one.")
+                                text: qsTr("No notes yet. Tap + to add one.")
                                 font: Tokens.font.body.small
                                 opacity: 0.6
                                 color: Colours.palette.m3onSurfaceVariant
@@ -321,15 +327,16 @@ Item {
             ColumnLayout {
                 id: editorCol
 
+                property var trackedId: root.selectedNote ? root.selectedNote.id : null
+
+                onTrackedIdChanged: {
+                    switchAnim.restart();
+                }
+
                 anchors.fill: parent
                 anchors.margins: Tokens.padding.large
                 spacing: Tokens.spacing.medium
                 visible: root.selectedNote !== null
-
-                property var trackedId: root.selectedNote ? root.selectedNote.id : null
-                onTrackedIdChanged: {
-                    switchAnim.restart();
-                }
 
                 SequentialAnimation {
                     id: switchAnim
@@ -372,7 +379,7 @@ Item {
                     radius: Tokens.rounding.large
                     text: root.selectedNote ? root.selectedNote.title : ""
                     // The floating "Title" label only shows while the field is empty.
-                    placeholderText: text.length === 0 ? Tr.tr("Title") : ""
+                    placeholderText: text.length === 0 ? qsTr("Title") : ""
                     font: Tokens.font.body.builders.large.size(22).weight(Font.DemiBold).build()
                     horizontalPadding: Tokens.padding.medium
                     verticalPadding: text.length === 0 ? Tokens.padding.large : Tokens.padding.medium
@@ -417,7 +424,7 @@ Item {
                             anchors.left: parent.left
                             anchors.top: parent.top
                             visible: bodyField.text.length === 0
-                            text: Tr.tr("Start writing...")
+                            text: qsTr("Start writing...")
                             font: bodyField.font
                             opacity: 0.5
                             color: Colours.palette.m3onSurfaceVariant
@@ -435,8 +442,9 @@ Item {
 
                     StyledText {
                         id: editedLabel
+
                         anchors.centerIn: parent
-                        text: root.selectedNote ? Tr.tr("Edited %1").arg(new Date(root.selectedNote.updated).toLocaleTimeString(Qt.locale(), "hh:mm")) : ""
+                        text: root.selectedNote ? qsTr("Edited %1").arg(new Date(root.selectedNote.updated).toLocaleTimeString(Qt.locale(), "hh:mm")) : ""
                         font: Tokens.font.body.small
                         opacity: 0.7
                         color: Colours.palette.m3onSurfaceVariant
@@ -461,11 +469,13 @@ Item {
                     SequentialAnimation on scale {
                         loops: Animation.Infinite
                         running: root.selectedNote === null
+
                         NumberAnimation {
                             to: 1.06
                             duration: Tokens.anim.durations.expressiveSlowEffects
                             easing: Tokens.anim.expressiveSlowEffects
                         }
+
                         NumberAnimation {
                             to: 1
                             duration: Tokens.anim.durations.expressiveSlowEffects
@@ -476,7 +486,7 @@ Item {
 
                 StyledText {
                     Layout.alignment: Qt.AlignHCenter
-                    text: Tr.tr("Select a note or create one")
+                    text: qsTr("Select a note or create one")
                     font: Tokens.font.body.medium
                     opacity: 0.6
                     color: Colours.palette.m3onSurfaceVariant

@@ -46,7 +46,7 @@ Item {
             {
                 component: notesComponent,
                 iconName: "sticky_note_2",
-                text: Tr.tr("Notes"),
+                text: qsTr("Notes"),
                 enabled: true
             },
             {
@@ -59,15 +59,14 @@ Item {
         return allTabs.filter(tab => tab.enabled);
     }
 
+    readonly property real nonAnimWidth: view.implicitWidth + viewWrapper.anchors.margins * 2
+    readonly property real nonAnimHeight: tabs.implicitHeight + tabs.anchors.topMargin + view.implicitHeight + viewWrapper.anchors.margins * 2
+
     onDashboardTabsChanged: {
         if (dashboardTabs.length > 0 && screenState.dashboardTab >= dashboardTabs.length) {
             screenState.dashboardTab = dashboardTabs.length - 1;
         }
     }
-
-    readonly property real nonAnimWidth: view.implicitWidth + viewWrapper.anchors.margins * 2
-
-    readonly property real nonAnimHeight: tabs.implicitHeight + tabs.anchors.topMargin + view.implicitHeight + viewWrapper.anchors.margins * 2
 
     implicitWidth: nonAnimWidth
     implicitHeight: nonAnimHeight
