@@ -68,7 +68,7 @@ QtObject {
                 { label: qsTr("Status icons"), keywords: ["indicators", "bar"], pagePath: "panels/taskbar/BarStatusIcons.qml", subPageIdx: 10 },
                 { label: qsTr("Clock"), keywords: ["date", "time"], pagePath: "panels/taskbar/BarClock.qml", subPageIdx: 11 },
                 { label: qsTr("Clock seconds"), keywords: ["clock", "time", "seconds", "show seconds"], pagePath: "panels/taskbar/BarClock.qml", subPageIdx: 11 },
-                { label: qsTr("Dock"), keywords: ["dock", "pinned", "apps"], pagePath: "panels/taskbar/BarDock.qml", subPageIdx: 12 },
+                { label: qsTr("Dock"), keywords: ["dock", "pinned", "apps", "grouping", "ungroup", "combine"], pagePath: "panels/taskbar/BarDock.qml", subPageIdx: 12 },
                 { label: qsTr("GitHub"), keywords: ["github", "contributions", "token"], pagePath: "panels/taskbar/BarGithub.qml", subPageIdx: 13 },
                 { label: qsTr("Per-element scaling offsets"), keywords: ["scale", "font scale", "preview"], pagePath: "panels/taskbar/BarPreviewScales.qml", subPageIdx: 14 },
                 { label: qsTr("Elements & Modules"), keywords: ["workspaces", "tray", "clock", "modules"], pagePath: "panels/taskbar/TaskbarElements.qml", subPageIdx: 15 },
@@ -92,7 +92,8 @@ QtObject {
                 { label: qsTr("VPN"), keywords: ["vpn", "tunnel", "secure"] },
                 { label: qsTr("IPv4"), keywords: ["ethernet", "ip address", "dhcp", "gateway"] },
                 { label: qsTr("All networks"), keywords: ["list", "available", "scan"], pagePath: "network/AllNetworksPage.qml", subPageIdx: 5 },
-                { label: qsTr("Saved networks"), keywords: ["remembered", "forget", "profiles"], pagePath: "network/SavedNetworksPage.qml", subPageIdx: 6 }
+                { label: qsTr("Saved networks"), keywords: ["remembered", "forget", "profiles"], pagePath: "network/SavedNetworksPage.qml", subPageIdx: 6 },
+                { label: qsTr("Hotspot"), keywords: ["hotspot", "tethering", "access point", "share connection"], pagePath: "network/HotspotPage.qml", subPageIdx: 7 }
             ]
         },
         {
@@ -241,7 +242,6 @@ QtObject {
                 { label: qsTr("OS Version"), keywords: ["caelestia", "quickshell", "release"] }
             ]
         },
-        // AI
         // Last, to stay aligned with PageCompRegistry.pageComps — this list is
         // indexed by position, so entries cannot be reordered independently.
         {

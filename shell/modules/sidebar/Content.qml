@@ -30,7 +30,17 @@ Item {
         }
     }
 
-    Component.onCompleted: checkAiTab()
+    Component.onCompleted: {
+        if (root.visibilities.sidebar) {
+            root.activeTab = Visibilities.initialSidebarTab || Visibilities.sidebarOpenTab();
+            Visibilities.initialSidebarTab = "";
+        }
+        checkAiTab();
+    }
+    onActiveTabChanged: {
+        if (root.visibilities.sidebar)
+            Visibilities.lastSidebarTab = activeTab;
+    }
 
     Connections {
         function onEnableAiAssistantChanged(): void { checkAiTab(); }
@@ -50,7 +60,8 @@ Item {
     Connections {
         function onSidebarChanged(): void {
             if (root.visibilities.sidebar) {
-                root.activeTab = Visibilities.initialSidebarTab;
+                root.activeTab = Visibilities.initialSidebarTab || Visibilities.sidebarOpenTab();
+                Visibilities.initialSidebarTab = "";
                 checkAiTab();
             }
         }
@@ -180,6 +191,38 @@ Item {
 
                         Behavior on x {
                             Anim {}
+                        }
+                    }
+
+                    // Pin: keep the sidebar open until it is closed explicitly.
+                    Item {
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.topMargin: 2
+                        anchors.rightMargin: 2
+                        z: 1
+                        implicitWidth: 26
+                        implicitHeight: 26
+
+                        StateLayer {
+                            id: pinStateLayer
+
+                            radius: Tokens.rounding.full
+                            color: Colours.palette.m3onSurface
+                            onClicked: GlobalConfig.sidebar.pinned = !GlobalConfig.sidebar.pinned
+                        }
+
+                        MaterialIcon {
+                            anchors.centerIn: parent
+                            text: "push_pin"
+                            rotation: Visibilities.sidebarPinned ? 0 : 45
+                            fill: Visibilities.sidebarPinned ? 1 : 0
+                            color: Visibilities.sidebarPinned ? Colours.palette.m3primary : pinStateLayer.containsMouse ? Colours.palette.m3onSurface : Colours.palette.m3outline
+                            fontStyle: Tokens.font.icon.small
+
+                            Behavior on rotation { Anim { type: Anim.DefaultEffects } }
+                            Behavior on fill { Anim { type: Anim.DefaultEffects } }
+                            Behavior on color { CAnim {} }
                         }
                     }
                 }

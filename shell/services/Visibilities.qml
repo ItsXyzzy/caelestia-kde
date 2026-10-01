@@ -1,6 +1,8 @@
 pragma Singleton
 
+import QtQuick
 import Quickshell
+import Caelestia.Config
 import qs.components
 import qs.services
 
@@ -8,7 +10,10 @@ Singleton {
     property var screens: new Map()
     property var bars: new Map()
     property string launcherInitialSearch: ""
-    property string initialSidebarTab: "notifications"
+    property string initialSidebarTab: ""
+    property string lastSidebarTab: "notifications"
+    property int openDialogs: 0
+    readonly property bool sidebarPinned: GlobalConfig.sidebar.pinned
     property string preOverviewActiveWindowAddress: ""
     property string dragAddress: ""
     property string dragOriginScreen: ""
@@ -20,6 +25,9 @@ Singleton {
 
     signal cycleOverview(bool backwards)
 
+    function sidebarOpenTab(): string {
+        return GlobalConfig.sidebar.defaultTab === "last" ? lastSidebarTab : GlobalConfig.sidebar.defaultTab;
+    }
     function load(screen: ShellScreen, visibilities: DrawerVisibilities): void {
         screens.set(Kwin.monitorFor(screen), visibilities);
         screens = new Map(screens);
@@ -65,5 +73,17 @@ Singleton {
     function setOverview(visible: bool): void {
         for (const visibilities of screens.values())
             visibilities.overview = visible;
+    }
+
+    Timer {
+        id: pinRestore
+
+        interval: 1500
+        running: GlobalConfig.sidebar.pinned
+        onTriggered: {
+            const v = getForActive();
+            if (v && GlobalConfig.sidebar.pinned)
+                v.sidebar = true;
+        }
     }
 }
