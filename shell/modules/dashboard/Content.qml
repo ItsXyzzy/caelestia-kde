@@ -47,7 +47,7 @@ Item {
                 component: notesComponent,
                 iconName: "sticky_note_2",
                 text: qsTr("Notes"),
-                enabled: true
+                enabled: Config.dashboard.showNotes
             },
             {
                 component: terminalComponent,
