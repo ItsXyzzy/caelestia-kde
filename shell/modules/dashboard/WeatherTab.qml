@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import QtQuick.Shapes
 import Caelestia.Config
 import qs.components
+import qs.components.controls
 import qs.services
 import qs.utils
 
@@ -20,6 +21,7 @@ Item {
     readonly property int step: 6
     readonly property int maxOffset: Math.max(0, allHourly.length - windowSize)
 
+    property bool hourlyExpanded: false
     property int hourOffset: 0
     property real scrollPos: hourOffset
 
@@ -161,21 +163,44 @@ Item {
             visible: root.allHourly.length > 0
             spacing: Tokens.spacing.small
 
-            StyledText {
+            RowLayout {
+                spacing: Tokens.spacing.small
+
+                StyledText {
+                    id: hourlyTitle
+
+                    text: qsTr("Hourly forecast")
+                    font: Tokens.font.body.builders.medium.weight(Font.DemiBold).build()
+                    color: Colours.palette.m3onSurface
+
+                    CustomMouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.hourlyExpanded = !root.hourlyExpanded
+                    }
+                }
+
+                ArrowButton {
+                    icon: root.hourlyExpanded ? "keyboard_arrow_up" : "keyboard_arrow_down"
+                    active: true
+                    onClicked: root.hourlyExpanded = !root.hourlyExpanded
+                }
+            }
+
+            Item {
                 Layout.fillWidth: true
-                text: qsTr("Hourly forecast")
-                font: Tokens.font.body.builders.medium.weight(Font.DemiBold).build()
-                color: Colours.palette.m3onSurface
             }
 
             ArrowButton {
                 icon: "chevron_left"
+                visible: root.hourlyExpanded
                 active: root.hourOffset > 0
                 onClicked: root.hourOffset = Math.max(0, root.hourOffset - root.step)
             }
 
             ArrowButton {
                 icon: "chevron_right"
+                visible: root.hourlyExpanded
                 active: root.hourOffset < root.maxOffset
                 onClicked: root.hourOffset = Math.min(root.maxOffset, root.hourOffset + root.step)
             }
@@ -185,7 +210,7 @@ Item {
             id: hourlyCard
 
             Layout.fillWidth: true
-            visible: root.allHourly.length > 0
+            visible: root.hourlyExpanded && root.allHourly.length > 0
             implicitHeight: hourStrip.implicitHeight + Tokens.padding.medium * 2
 
             radius: Tokens.rounding.large
